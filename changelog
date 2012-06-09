@@ -1,0 +1,15 @@
+
+
+Version a2
+  * Changed: `trans` instruction renamed to `gen`
+  * Added: Commandline interface framework.
+  * Added: `help` and `help <command>` instructions
+  * Added: Program log.
+  * Added: Files `todo` and `changelog`
+  * Added: Valid directory detection
+  * Removed: `list` command.
+  * Renamed: `default.conf` to `common.conf`
+
+
+Version a1
+  * Initial Release (alpha status)

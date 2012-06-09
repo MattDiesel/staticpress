@@ -3,9 +3,13 @@ import os.path, sys
 
 
 class Log:
-	def __init__(self, dir='logs'):
-		self.dir = 'logs'
-		p,self.command = os.path.split(sys.argv[0])
+	def __init__(self, name=None, dir='logs'):
+		self.dir = dir
+
+		if name == None:
+			p,self.command = os.path.split(sys.argv[0])
+		else:
+			self.command = '{}.py'.format(name)
 		self.command,ext = os.path.splitext(self.command)
 		self.index = 0
 

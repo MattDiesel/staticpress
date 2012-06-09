@@ -1,10 +1,246 @@
 
-__NAME__ = 'ssm'
+__NAME__ = 'spm'
 __AUTHOR__ = 'Matt Diesel'
 __VERSION__ = '0.01'
 
-import sys, os.path
+import sys, os, os.path, logging, configparser, shutil
+
 
 basepath = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])))
+sys.path.insert(0, os.path.join(basepath, 'lib'))
 
-os.system(os.path.join(basepath, "bin\\{}.py {}".format(sys.argv[1], ' '.join(sys.argv[2:]))))
+from CmdLine import CmdLine, CmdLineBase, CmdLineError
+from HTMLReplacements import HTMLReplacements
+from trans import trans
+
+sys.path.pop(0)
+
+class SPMError(Exception):
+	pass
+
+class SPM(CmdLineBase):
+	def __init__(self, dir):
+		self.basedir = dir
+
+		self.dir = {
+			'config': 'config',
+			'www': 'www',
+			'tmp': 'tmp',
+			'cache': 'cache',
+			'logs': 'logs',
+			'tags': 'tags',
+		}
+		self.path = dict([ (key, os.path.join(self.basedir, val)) for (key, val) in self.dir.items()  ])
+
+		# Minimum requirement for a valid site is the www folder.
+		self.valid = False
+		if os.path.exists(self.path['www']):
+			self.valid = True
+
+		if not os.access(self.basedir, os.W_OK | os.X_OK):
+			print('WARNING: User does not have write permissions in this directory!', file=sys.stderr)
+
+		self._loadlogging()
+		self._loadconfig()
+		self._loadtags()
+
+
+	def _loadtags(self):
+		self.tags = None
+
+		if self.valid:
+			if not os.path.exists(self.path['tags']):
+				self._warning('Tags folder not present. Creating.')
+				os.makedirs(self.path['tags'])
+
+			self._info('Loading tag replacements...')
+			try:
+				self.tags = HTMLReplacements(self.tagpath)
+				self._info('Tags loaded.')
+			except Exception as e:
+				self._critical('Unable to load tags. {}.'.format(type(e).__name__))
+
+	def _loadlogging(self):
+		self.log = False
+
+		if self.valid:
+			if not os.path.exists(self.path['logs']):
+				os.makedirs(self.path['logs'])
+
+			self.log = True
+			logging.basicConfig(filename=os.path.join(self.path['logs'], 'spm.log'),
+					level=logging.INFO)
+
+			self._info('Log opened.')
+		else:
+			print("Warning: No logs have been opened. You are alone.")
+
+	def _log(self, level, str):
+		if self.log:
+			logging.log(level, str)
+
+	def _info(self, str, comm=''):
+		if self.log:
+			if comm != '':
+				logging.info('{}: {}'.format(comm, str))
+			else:
+				logging.info(str)
+
+		if comm != '':
+			print(str)
+
+	def _warning(self, str):
+		if self.log:
+			logging.warning(str)
+
+	def _critical(self, str):
+		if self.log:
+			logging.critical(str)
+		print('ERROR(CRITICAL):', str, file=sys.stderr)
+
+	def _exception(self, str):
+		if self.log:
+			logging.exception(str)
+		print(str, file=sys.stderr)
+
+	def _debug(self, str):
+		if self.log:
+			logging.debug(str)
+
+	def clean(self):
+		if not self.valid:
+			print('ERROR: Not in a valid site folder!')
+		else:
+			self._info('Removing all files...', 'clean')
+			if (os.path.exists(self.path['cache'])):
+				shutil.rmtree(self.path['cache'])
+			self._info('Recreating folder...', 'clean')
+			os.makedirs(self.path['cache'])
+			self._info('Done.', 'clean')
+
+	def _loadconfig(self):
+		self.config = {}
+
+		if self.valid:
+			if not os.path.exists(self.path['config']):
+				os.makedirs(self.path['config'])
+				self._warning('Config folder not present. Creating.')
+
+			for f in os.listdir(self.path['config']):
+				if os.path.isfile(f):
+					name, ext = os.path.splitext(f)
+
+					if ext == '.conf':
+						self._info('Loading config file: {}'.format(f))
+
+						if ' ' in name:
+							n = name.split(' ')[0]
+
+							self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
+									name, n))
+
+							if n in self.config.keys():
+								self._info('Config file context already present: \'{}\'! Merging.'.format(
+									n))
+
+								self.config[n].read(os.path.join(self.path['config'], f))
+							else:
+								self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+								self.config[n].read(os.path.join(self.path['config'], f))
+						else:
+							self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+							self.config[n].read(os.path.join(self.path['config'], f))
+					else:
+						self._info('Non conf file in config folder. Ignoring.')
+				else:
+					self._info('Directory in config folder. Ignoring.')
+			else:
+				self._warning('Config folder empty.')
+		else:
+			pass
+
+	def init(self, SiteName):
+		"""
+		Creates a new site directory.
+		The folder <SiteName> is created, and the directory structure is
+		created allowing it to function as a site. The folder must NOT
+		already exist.
+
+		A valid site folder must contain at the minimum a folder called
+		'www'. Other folders are optional, but will be created at runtime
+		if they do not already exist.
+
+		If the folder is detected to already be a valid site folder, then
+		an error is printed and no further action is taken.
+		"""
+		print('Initializing new site directory.')
+
+		path = os.path.join(self.basedir, SiteName)
+
+		print('Path = {}'.format(path))
+
+		if os.path.exists(path):
+			if os.path.exists(os.path.join(path, self.dir['www'])):
+				self._critical('Directory is already a valid site directory!')
+			else:
+				self._critical('Directory already exists!')
+
+		skel = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'skel')
+		print('Copying files from', skel)
+
+		shutil.copytree(skel, path)
+
+		print('Done! You new site is at', SiteName, '.')
+
+	def gen(self, *files):
+		"""
+		Generates the site.
+		`gen` is the most important command available, by default (when
+		no files are specified) it will process the entire www folder contents
+		and apply the transformations available to generate the output static
+		pages in the cache directory.
+
+		If files are given, then only they will be generated and copied. Files
+		can also contain wildcards, or point to directories.
+		"""
+		self._info('Generating...', 'gen')
+
+		if (len(files) == 0) or ('all' in files):
+			file = None
+			self._info('files: (All Files)', 'gen')
+		else:
+			self._info('files: {}'.format(', '.join(files)), 'gen')
+
+		try:
+			t = trans(self.dir, self.path, self.config, self.tags)
+
+			try:
+				t.run()
+
+				self._info('Finished transfer. Log written to \'{}\'.'.format(t.log.fname), 'gen')
+			except Exception as e:
+				self._exception('Error during transfer. {}.'.format(type(e).__name__))
+		except Exception as e:
+			self._exception('Unable to initialise transfer. {}.'.format(type(e).__name__))
+
+
+if __name__ == '__main__':
+	try:
+		s = SPM(os.getcwd())
+		c = CmdLine(s)
+
+		args = sys.argv[1:]
+		cmd = ''
+
+		if len(args) > 0:
+			cmd = args.pop(0)
+		else:
+			cmd = 'help'
+
+		c.dispatch(cmd, args)
+
+		del s
+	except SPMError as e:
+		print(e.args[1], file=sys.stderr)
+	except CmdLineError as e:
+		print(e.args[1], file=sys.stderr)

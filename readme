@@ -43,9 +43,9 @@ config   | Contains configuration files. Currently only one is used, though
          | commands are logged, and the ## is a number that is incremented to
          | give it a new file name. For example, running:
 logs     | 
-         | > spm.py trans
+         | > spm.py gen
          | 
-         | Will generate a log file "trans0.log", which will list every single
+         | Will generate a log file "gen0.log", which will list every single
          | file processed, the action that was attempted, and the result.
          |
 ---------+-----------------------------
@@ -135,7 +135,7 @@ problems later.
 Files are modified in the www folder, then the following command is used to
 "compile" the results to the final site:
 
-$ spm.py trans
+$ spm.py gen
 
 This performs all the translations available, and so will modify any html,
 .redirect or .meta files it finds. Any other files are copied straight into the
@@ -154,6 +154,8 @@ to show that the file was not modified by the processing.
 
 == Other Commands =====================
 
+Try:
 
-clean
-list
+> spm.py help
+
+For a list of commands available.
