@@ -25,8 +25,6 @@ class SPM(CmdLineBase):
 
 		self.spbase = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])))
 
-		self.spdir = {'tags': 'tags'}
-		self.sppath = dict([ (key, os.path.join(self.spbase, val)) for (key, val) in self.spdir.items()  ])
 
 		self.dir = {
 			'config': 'config',
@@ -37,6 +35,7 @@ class SPM(CmdLineBase):
 			'tags': 'tags',
 		}
 		self.path = dict([ (key, os.path.join(self.basedir, val)) for (key, val) in self.dir.items()  ])
+		self.sppath = dict([ (key, os.path.join(self.basedir, val)) for (key, val) in self.dir.items()  ])
 
 		# Minimum requirement for a valid site is the www folder.
 		self.valid = False
@@ -103,40 +102,43 @@ class SPM(CmdLineBase):
 			self._info('Loading config.')
 			self._info('Loading config from: {}'.format(self.path['config']))
 
-			for f in os.listdir(self.path['config']):
-				path = os.path.join(self.path['config'], f)
+			configpaths = [self.sppath['config'], self.path['config']]
 
-				if os.path.isfile(path):
-					name, ext = os.path.splitext(f)
+			for p in configpaths:
+				for f in os.listdir(p):
+					path = os.path.join(p, f)
 
-					if ext == '.conf':
-						self._info('Loading config file: {}'.format(f))
+					if os.path.isfile(path):
+						name, ext = os.path.splitext(f)
 
-						if ' ' in name:
-							n = name.split(' ')[0]
+						if ext == '.conf':
+							self._info('Loading config file: {}'.format(f))
 
-							self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
-									name, n))
+							if ' ' in name:
+								n = name.split(' ')[0]
 
-							if n in self.config.keys():
-								self._info('Config file context already present: \'{}\'! Merging.'.format(
-									n))
+								self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
+										name, n))
 
-								self.config[n].read(path)
+								if n in self.config.keys():
+									self._info('Config file context already present: \'{}\'! Merging.'.format(
+										n))
+
+									self.config[n].read(path)
+								else:
+									self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+									self.config[n].read(path)
 							else:
-								self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-								self.config[n].read(path)
+								self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+								self.config[name].read(path)
 						else:
-							self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-							self.config[name].read(path)
+							self._info('Non conf file in config folder: \'{}\'. Ignoring.'.format(f))
 					else:
-						self._info('Non conf file in config folder: \'{}\'. Ignoring.'.format(f))
+						self._info('Directory in config folder: \'{}\'. Ignoring.'.format(f))
 				else:
-					self._info('Directory in config folder: \'{}\'. Ignoring.'.format(f))
+					self._warning('Config folder empty!')
 			else:
-				self._warning('Config folder empty!')
-		else:
-			pass
+				pass
 
 		self._debugging = None
 		if 'common' in self.config.keys():
@@ -281,6 +283,21 @@ class SPM(CmdLineBase):
 
 	def _serverlog(self, str):
 		self._info(str, 'server')
+
+	def _dbg(self, what):
+		if what == 'config':
+			for (key,val) in self.config.items():
+				print('[[{}]]'.format(key))
+
+				for sect in val.sections():
+					print('[{}]'.format(sect))
+
+					for (k,v) in val[sect].items():
+						print(k, '=', v)
+		elif what == 'tags':
+			print(self.tags)
+		else:
+			print('What?')
 
 if __name__ == '__main__':
 	try:

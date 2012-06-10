@@ -38,7 +38,6 @@ class HTMLReplacements:
 								except AttributeError:
 									raise
 							else:
-								print(d, name, sep=':')
 								self.repls['{}:{}'.format(d, name)] = (os.path.join(p, d, f), None)
 				else:
 					name, ext = os.path.splitext(d)
