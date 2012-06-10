@@ -1,7 +1,7 @@
 
 __NAME__ = 'spm'
 __AUTHOR__ = 'Matt Diesel'
-__VERSION__ = 'a3'
+__VERSION__ = 'a4'
 
 import sys, os, os.path, logging, configparser, shutil, http.server, socketserver
 
@@ -22,6 +22,11 @@ class SPMError(Exception):
 class SPM(CmdLineBase):
 	def __init__(self, dir):
 		self.basedir = dir
+
+		self.spbase = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])))
+
+		self.spdir = {'tags': 'tags'}
+		self.sppath = dict([ (key, os.path.join(self.spbase, val)) for (key, val) in self.spdir.items()  ])
 
 		self.dir = {
 			'config': 'config',
@@ -56,7 +61,11 @@ class SPM(CmdLineBase):
 			self._info('Loading tag replacements...')
 			self._info('Loading tags from: {}'.format(self.path['tags']))
 			try:
-				self.tags = HTMLReplacements(self.path['tags'])
+				self.tags = HTMLReplacements([self.sppath['tags'], self.path['tags']])
+
+				# Load additional standard tags:
+				self.tags.add('sp:version', '<built-in>', __VERSION__)
+
 				self._info('Tags loaded.')
 			except Exception as e:
 				self._critical('Unable to load tags. {}.'.format(type(e).__name__))
@@ -227,6 +236,9 @@ class SPM(CmdLineBase):
 		"""
 		self._info('Generating...', 'gen')
 
+		if self._genlog not in self.tags.infof:
+			self.tags.infof.append(self._genlog)
+
 		if (len(files) == 0) or ('all' in files):
 			file = None
 			self._info('files: (All Files)', 'gen')
@@ -244,6 +256,9 @@ class SPM(CmdLineBase):
 				self._exception('Error during transfer. {}.'.format(type(e).__name__))
 		except Exception as e:
 			self._exception('Unable to initialise transfer. {}.'.format(type(e).__name__))
+
+	def _genlog(self, str):
+		self._info(str, 'gen')
 
 	def server(self, cache_or_www='cache', port=80):
 		"""

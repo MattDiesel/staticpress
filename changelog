@@ -1,4 +1,15 @@
 
+Version a4
+  * Fixed: Tag handlers throwing exceptions crashing generation
+  * Added: Better log output for generation, including unrecognised tags.
+  * Added: Standard `<sp:* />` tags: `version` and `datetime`
+  * Added: Ability to load tags from multiple directories (currently not exposed to user)
+
+Version a3
+  * Added: Test server (try `help server`)
+  * Fixed: Tags not loading correctly.
+  * Fixed: `gen` ignoring paths
+  * Fixed: Commands ignoring debug setting in config
 
 Version a2
   * Changed: `trans` instruction renamed to `gen`

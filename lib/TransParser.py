@@ -6,6 +6,7 @@ class TransParser(HTMLParser):
 		self.rep = reps
 		self.outStream = outs
 		self.stripComment = sc
+		self.rep.parser = self
 
 		HTMLParser.__init__(self, strict)
 
@@ -32,8 +33,9 @@ class TransParser(HTMLParser):
 			r = self.rep.transf(tag, attrs)
 
 		if ((r == None) and self.rep and (':' in tag)):
-			self.out(self.rep[tag])
-		elif (r != None):
+			r = self.rep[tag]
+
+		if (r != None):
 			self.out(r)
 		else:
 			self.out('<{}{} />'.format(tag, self.attrs(attrs)))
@@ -50,8 +52,9 @@ class TransParser(HTMLParser):
 			r = self.rep.transf(tag, attrs)
 
 		if ((r == None) and self.rep and (':' in tag)):
-			self.out(self.rep[tag])
-		elif (r != None):
+			r = self.rep[tag]
+
+		if (r != None):
 			self.out(r)
 		else:
 			self.out("<{}{}>".format(tag, self.attrs(attrs)))

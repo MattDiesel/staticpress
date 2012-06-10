@@ -13,6 +13,12 @@ class trans:
 		self.config = conf
 		self.reps = rep
 
+		if self._log not in self.reps.infof:
+			self.reps.infof.append(self._log)
+
+	def _log(self, s):
+		self.log.writes(s)
+
 	def htmlrepl(self, file):
 		try:
 			path, f = os.path.split(file)
@@ -37,7 +43,7 @@ class trans:
 
 			return 'success'
 		except Exception as e:
-			if configDebug:
+			if self.configDebug:
 				raise
 
 			return type(e).__name__
@@ -68,7 +74,7 @@ class trans:
 
 			return 'success'
 		except Exception as e:
-			if configDebug:
+			if self.configDebug:
 				raise
 
 			return type(e).__name__
@@ -185,7 +191,7 @@ class trans:
 
 			return 'success'
 		except Exception as e:
-			if configDebug:
+			if self.configDebug:
 				raise
 
 			return type(e).__name__
@@ -209,7 +215,7 @@ class trans:
 			shutil.copy2(file, cachefile)
 			return 'success'
 		except Exception as e:
-			if configDebug:
+			if self.configDebug:
 				raise
 
 			return type(e).__name__
@@ -227,7 +233,7 @@ class trans:
 				result = ''
 				action = ''
 
-				print(d, "...", end='')
+				print(d, "... ", end='')
 
 				if (fnmatch.fnmatch(d, '*.html')):
 					action = 'translate'
@@ -266,4 +272,5 @@ class trans:
 		else:
 			print('{} Changes made.'.format(self.log.counters['*:success']))
 
+		self.reps.infof.remove(self._log)
 		self.log.end()

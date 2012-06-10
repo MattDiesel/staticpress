@@ -3,59 +3,78 @@ import os, imp, os.path, io
 from TransParser import *
 
 class HTMLReplacements:
-	def __init__(self, tagDir='tags'):
-		self.base = tagDir;
+	def __init__(self, tagDir=['tags'], ignore = ['__pycache__'], logs=[], parser=None):
+		p = tagDir;
 		self.repls = {}
 		self.handlers = {}
 		self.disallow = []
 
-		self.ignore = ['__pycache__']
+		self.tagpaths = tagDir
+		self.ignore = ignore
+		self.infof = logs
+		self.parser = parser
 
 		self.loadRepls()
 
 	def loadRepls(self):
-		for d in os.listdir(self.base):
-			if (d in self.ignore):
-				pass
-			elif os.path.isdir('{}/{}'.format(self.base, d)):
-				for f in os.listdir('{}/{}/'.format(self.base, d)):
-					if (f in self.ignore):
-						pass
-					elif os.path.isfile('{}/{}/{}'.format(self.base, d, f)):
-						name, ext = os.path.splitext(f)
+		for p in self.tagpaths:
+			for d in os.listdir(p):
+				if (d in self.ignore):
+					pass
+				elif os.path.isdir(os.path.join(p, d)):
+					for f in os.listdir(os.path.join(p, d)):
+						if (f in self.ignore):
+							pass
+						elif os.path.isfile(os.path.join(p, d, f)):
+							name, ext = os.path.splitext(f)
 
-						if (ext == '.py'):
-							try:
-								mod = imp.load_source('{}.{}'.format(d, name), '{}/{}/{}'.format(self.base, d, f))
+							if (ext == '.py'):
+								try:
+									mod = imp.load_source('{}.{}'.format(d, name), os.path.join(p, d, f))
 
-								self.repls['{}:{}'.format(d, name)] = (
-									'{}/{}/{}'.format(self.base, d, f),
-									mod)
-							except AttributeError:
-								pass
-						else:
-							self.repls['{}:{}'.format(d, name)] = ('{}/{}/{}'.format(self.base, d, f), None)
-			else:
-				name, ext = os.path.splitext(d)
-
-				mod = imp.load_source('taghandler.{}'.format(name), '{}/{}'.format(self.base, d))
-
-				if (name in self.handlers.keys()):
-					self.handlers[name].append(mod)
+									self.repls['{}:{}'.format(d, name)] = (
+										os.path.join(p, d, f),
+										mod)
+								except AttributeError:
+									raise
+							else:
+								print(d, name, sep=':')
+								self.repls['{}:{}'.format(d, name)] = (os.path.join(p, d, f), None)
 				else:
-					self.handlers[name] = [mod]
+					name, ext = os.path.splitext(d)
+
+					mod = imp.load_source('taghandler.{}'.format(name), os.path.join(p, d))
+
+					if (name in self.handlers.keys()):
+						self.handlers[name].append(mod)
+					else:
+						self.handlers[name] = [mod]
+
+	def add(self, key, file, value):
+		self.repls[key] = (file, value)
 
 	def __getitem__(self, key):
 		return self.get(key)
 
+	def info(self, s):
+		for f in self.infof:
+			f(s)
+
 	def get(self, key, attrs=None):
 		if (key not in self.repls.keys()):
-			raise KeyError(key)
+			self.info('Unrecognised tag: \'<{}>\' at {}. Ignoring.'.format(key,
+					self.parser.getpos() if self.parser != None else '???'))
+			return None
 
 		file, ret = self.repls[key];
 
 		if (file[-3:] == '.py'):
-			return ret.handler(attrs)
+			try:
+				return ret.handler(attrs)
+			except Exception as e:
+				self.info('Tag handler for \'<{}>\' threw exception \'{}\'.'.format(
+						key, type(e).__name__))
+				return '<!-- {} //-->'.format('{} -> ERROR: {}'.format(key, type(e).__name__))
 		elif (ret == None):
 			s = io.StringIO('')
 

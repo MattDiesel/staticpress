@@ -48,6 +48,9 @@ class Log:
 
 		print(file, action, result, sep=',', file=self.fd)
 
+	def writes(self, s):
+		print(s, file=self.fd)
+
 	def printStats(self):
 		print('-- SUMMARY ---------', file=self.fd)
 
