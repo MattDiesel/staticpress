@@ -1,4 +1,7 @@
 
+Version a5
+  * Added: `_dbg` command
+
 Version a4
   * Fixed: Tag handlers throwing exceptions crashing generation
   * Added: Better log output for generation, including unrecognised tags.

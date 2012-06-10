@@ -1,7 +1,7 @@
 
 __NAME__ = 'spm'
 __AUTHOR__ = 'Matt Diesel'
-__VERSION__ = 'a4'
+__VERSION__ = 'a5'
 
 import sys, os, os.path, logging, configparser, shutil, http.server, socketserver
 
@@ -25,7 +25,6 @@ class SPM(CmdLineBase):
 
 		self.spbase = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])))
 
-
 		self.dir = {
 			'config': 'config',
 			'www': 'www',
@@ -35,7 +34,7 @@ class SPM(CmdLineBase):
 			'tags': 'tags',
 		}
 		self.path = dict([ (key, os.path.join(self.basedir, val)) for (key, val) in self.dir.items()  ])
-		self.sppath = dict([ (key, os.path.join(self.basedir, val)) for (key, val) in self.dir.items()  ])
+		self.sppath = dict([ (key, os.path.join(self.spbase, val)) for (key, val) in self.dir.items()  ])
 
 		# Minimum requirement for a valid site is the www folder.
 		self.valid = False
@@ -100,11 +99,12 @@ class SPM(CmdLineBase):
 				self._warning('Config folder not present. Creating.')
 
 			self._info('Loading config.')
-			self._info('Loading config from: {}'.format(self.path['config']))
 
 			configpaths = [self.sppath['config'], self.path['config']]
 
 			for p in configpaths:
+				self._info('Loading config from: {}'.format(p))
+
 				for f in os.listdir(p):
 					path = os.path.join(p, f)
 
@@ -120,14 +120,17 @@ class SPM(CmdLineBase):
 								self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
 										name, n))
 
-								if n in self.config.keys():
-									self._info('Config file context already present: \'{}\'! Merging.'.format(
-										n))
+								name = n
 
-									self.config[n].read(path)
-								else:
-									self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-									self.config[n].read(path)
+							if name in self.config.keys():
+								self._info('Config file context already present: \'{}\'! Merging.'.format(
+									name))
+
+								c = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+								c.read(path)
+
+								for (k,v) in c.items():
+									self.config[name][k] = v
 							else:
 								self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 								self.config[name].read(path)
@@ -135,8 +138,6 @@ class SPM(CmdLineBase):
 							self._info('Non conf file in config folder: \'{}\'. Ignoring.'.format(f))
 					else:
 						self._info('Directory in config folder: \'{}\'. Ignoring.'.format(f))
-				else:
-					self._warning('Config folder empty!')
 			else:
 				pass
 
