@@ -1,9 +1,9 @@
 
 __NAME__ = 'spm'
 __AUTHOR__ = 'Matt Diesel'
-__VERSION__ = '0.01'
+__VERSION__ = 'a3'
 
-import sys, os, os.path, logging, configparser, shutil
+import sys, os, os.path, logging, configparser, shutil, http.server, socketserver
 
 
 basepath = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])))
@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(basepath, 'lib'))
 from CmdLine import CmdLine, CmdLineBase, CmdLineError
 from HTMLReplacements import HTMLReplacements
 from trans import trans
+from SPServer import SPServer
 
 sys.path.pop(0)
 
@@ -38,12 +39,11 @@ class SPM(CmdLineBase):
 			self.valid = True
 
 		if not os.access(self.basedir, os.W_OK | os.X_OK):
-			print('WARNING: User does not have write permissions in this directory!', file=sys.stderr)
+			self._critical('WARNING: User does not have write permissions in this directory!')
 
 		self._loadlogging()
 		self._loadconfig()
 		self._loadtags()
-
 
 	def _loadtags(self):
 		self.tags = None
@@ -54,11 +54,15 @@ class SPM(CmdLineBase):
 				os.makedirs(self.path['tags'])
 
 			self._info('Loading tag replacements...')
+			self._info('Loading tags from: {}'.format(self.path['tags']))
 			try:
-				self.tags = HTMLReplacements(self.tagpath)
+				self.tags = HTMLReplacements(self.path['tags'])
 				self._info('Tags loaded.')
 			except Exception as e:
 				self._critical('Unable to load tags. {}.'.format(type(e).__name__))
+
+				if self._debugging:
+					raise
 
 	def _loadlogging(self):
 		self.log = False
@@ -71,9 +75,68 @@ class SPM(CmdLineBase):
 			logging.basicConfig(filename=os.path.join(self.path['logs'], 'spm.log'),
 					level=logging.INFO)
 
+			self._info('Program started. ---------------------------------------------------------------')
 			self._info('Log opened.')
+
+			self._info('Running in: {}'.format(self.basedir))
+			self._info('Logging to: {}'.format(self.path['logs']))
 		else:
 			print("Warning: No logs have been opened. You are alone.")
+
+	def _loadconfig(self):
+		self.config = {}
+
+		if self.valid:
+			if not os.path.exists(self.path['config']):
+				os.makedirs(self.path['config'])
+				self._warning('Config folder not present. Creating.')
+
+			self._info('Loading config.')
+			self._info('Loading config from: {}'.format(self.path['config']))
+
+			for f in os.listdir(self.path['config']):
+				path = os.path.join(self.path['config'], f)
+
+				if os.path.isfile(path):
+					name, ext = os.path.splitext(f)
+
+					if ext == '.conf':
+						self._info('Loading config file: {}'.format(f))
+
+						if ' ' in name:
+							n = name.split(' ')[0]
+
+							self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
+									name, n))
+
+							if n in self.config.keys():
+								self._info('Config file context already present: \'{}\'! Merging.'.format(
+									n))
+
+								self.config[n].read(path)
+							else:
+								self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+								self.config[n].read(path)
+						else:
+							self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+							self.config[name].read(path)
+					else:
+						self._info('Non conf file in config folder: \'{}\'. Ignoring.'.format(f))
+				else:
+					self._info('Directory in config folder: \'{}\'. Ignoring.'.format(f))
+			else:
+				self._warning('Config folder empty!')
+		else:
+			pass
+
+		self._debugging = None
+		if 'common' in self.config.keys():
+			self._debugging = self.config['common'].get('debug', 'enable')
+
+		if (self._debugging != None) and (self._debugging in ['yes', 'y', '1', 'on', 'enable', 'e', 't', 'true']):
+			self._debugging = True
+		else:
+			self._debugging = False
 
 	def _log(self, level, str):
 		if self.log:
@@ -117,47 +180,6 @@ class SPM(CmdLineBase):
 			self._info('Recreating folder...', 'clean')
 			os.makedirs(self.path['cache'])
 			self._info('Done.', 'clean')
-
-	def _loadconfig(self):
-		self.config = {}
-
-		if self.valid:
-			if not os.path.exists(self.path['config']):
-				os.makedirs(self.path['config'])
-				self._warning('Config folder not present. Creating.')
-
-			for f in os.listdir(self.path['config']):
-				if os.path.isfile(f):
-					name, ext = os.path.splitext(f)
-
-					if ext == '.conf':
-						self._info('Loading config file: {}'.format(f))
-
-						if ' ' in name:
-							n = name.split(' ')[0]
-
-							self._info('Config file with space in name: \'{}\'. Truncating to \'{}\''.format(
-									name, n))
-
-							if n in self.config.keys():
-								self._info('Config file context already present: \'{}\'! Merging.'.format(
-									n))
-
-								self.config[n].read(os.path.join(self.path['config'], f))
-							else:
-								self.config[n] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-								self.config[n].read(os.path.join(self.path['config'], f))
-						else:
-							self.config[name] = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-							self.config[n].read(os.path.join(self.path['config'], f))
-					else:
-						self._info('Non conf file in config folder. Ignoring.')
-				else:
-					self._info('Directory in config folder. Ignoring.')
-			else:
-				self._warning('Config folder empty.')
-		else:
-			pass
 
 	def init(self, SiteName):
 		"""
@@ -223,6 +245,27 @@ class SPM(CmdLineBase):
 		except Exception as e:
 			self._exception('Unable to initialise transfer. {}.'.format(type(e).__name__))
 
+	def server(self, cache_or_www='cache', port=80):
+		"""
+		Starts a test server.
+		"""
+		self._info('Setting up test server...', 'server')
+		self._info('Set to listen on port {} using {}'.format(port, cache_or_www), 'server')
+
+		try:
+			conf = None
+			if 'server' in self.config.keys():
+				conf = self.config['server']
+
+			s = SPServer(conf, port, self.path[cache_or_www], __VERSION__, self._serverlog)
+		except Exception as e:
+			self._exception('Server stopped: {}'.format(type(e).__name__))
+
+			if self._debugging:
+				raise
+
+	def _serverlog(self, str):
+		self._info(str, 'server')
 
 if __name__ == '__main__':
 	try:

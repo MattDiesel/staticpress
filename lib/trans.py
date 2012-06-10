@@ -17,12 +17,13 @@ class trans:
 		try:
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
-			cachefile = os.path.join(self.path['cache'], f)
+			cachefile = os.path.join(self.path['cache'], file)
+			cachepath = os.path.join(self.path['cache'], path)
 
 			tmpfile = os.path.join(self.tmp, f)
 
-			if (not os.path.exists(self.path['cache'])):
-				os.makedirs(self.path['cache'])
+			if (not os.path.exists(cachepath)):
+				os.makedirs(cachepath)
 
 			out = open(tmpfile, 'wt', encoding="utf-8")
 			parser = TransParser(False, self.reps, out)
@@ -76,12 +77,13 @@ class trans:
 		try:
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
-			cachefile = os.path.join(self.path['cache'], '.htaccess')
+			cachefile = os.path.join(self.path['cache'], path, '.htaccess')
+			cachepath = os.path.join(self.path['cache'], path)
 
 			tmpfile = os.path.join(self.tmp, '.htaccess')
 
-			if (not os.path.exists(self.path['cache'])):
-				os.makedirs(self.path['cache'])
+			if (not os.path.exists(cachepath)):
+				os.makedirs(cachepath)
 
 			meta = configparser.ConfigParser()
 			meta.read(file)
@@ -193,10 +195,11 @@ class trans:
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
 
-			cachefile = os.path.join(self.path['cache'], f)
+			cachefile = os.path.join(self.path['cache'], file)
+			cachepath = os.path.join(self.path['cache'], path)
 
-			if (not os.path.exists(self.path['cache'])):
-				os.makedirs(self.path['cache'])
+			if (not os.path.exists(cachepath)):
+				os.makedirs(cachepath)
 			elif (not os.path.exists(cachefile)):
 				pass
 			else:
@@ -211,14 +214,14 @@ class trans:
 
 			return type(e).__name__
 
-	def traverse(self, dir='www', ignore=['__pycache__']):
+	def traverse(self, dir='.', ignore=['__pycache__']):
 		for d in os.listdir(dir):
-			path = os.path.join(dir, d)
+			path = os.path.relpath(os.path.join(dir, d))
 
 			if ((d in ignore) or (d[0:1] == '.')):
 				pass
 			elif (os.path.isdir(path)):
-				self.traverse(path, ignore)
+				self.traverse(os.path.relpath(path), ignore)
 			else:
 				name, ext = os.path.splitext(d)
 				result = ''
@@ -241,8 +244,8 @@ class trans:
 
 	def run(self):
 		self.configDebug = None
-		if 'default' in self.config:
-			self.configDebug = self.config['default'].get('debug', 'enable')
+		if 'common' in self.config:
+			self.configDebug = self.config['common'].get('debug', 'enable')
 
 		if (self.configDebug != None) and (self.configDebug in ['yes', 'y', '1', 'on', 'enable', 'e', 't', 'true']):
 			self.configDebug = True
@@ -255,7 +258,8 @@ class trans:
 			os.makedirs(self.path['tmp'])
 
 		with tempfile.TemporaryDirectory(dir=self.path['tmp']) as self.tmp:
-			self.traverse(self.path['www'])
+			os.chdir(self.path['www'])
+			self.traverse()
 
 		if not '*:success' in self.log.counters.keys():
 			print('No changes made.')
