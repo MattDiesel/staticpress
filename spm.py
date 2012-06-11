@@ -249,7 +249,8 @@ class SPM(CmdLineBase):
 			self._info('files: {}'.format(', '.join(files)), 'gen')
 
 		try:
-			t = trans(self.dir, self.path, self.config, self.tags)
+			c = self.config['common'] if 'common' in self.config.keys() else None
+			t = trans(self.dir, self.path, c, self.tags)
 
 			try:
 				t.run()
@@ -263,12 +264,24 @@ class SPM(CmdLineBase):
 	def _genlog(self, str):
 		self._info(str, 'gen')
 
-	def server(self, cache_or_www='cache', port=80):
+	def server(self, cache_or_www=None, port=None):
 		"""
 		Starts a test server.
 		"""
 		self._info('Setting up test server...', 'server')
 		self._info('Set to listen on port {} using {}'.format(port, cache_or_www), 'server')
+
+		if cache_or_www == None:
+			try:
+				cache_or_www = self.config['common']['server']['dir']
+			except:
+				cache_or_www = 'cache'
+
+		if port == None:
+			try:
+				port = self.config['common']['server']['port']
+			except:
+				port = 80
 
 		try:
 			conf = None
