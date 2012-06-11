@@ -50,11 +50,21 @@ class trans:
 
 	def redir(self, file):
 		try:
+			php = False
+			try:
+				php = self.config.getboolean('gen', 'allow_php')
+			except:
+				pass
+
+			outf = 'index.{}'.format('php' if php else 'html')
+
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
-			cachefile = os.path.join(self.path['cache'], 'index.php')
+			cachefile = os.path.join(self.path['cache'], outf)
+			tmpfile = os.path.join(self.tmp, outf)
 
-			tmpfile = os.path.join(self.tmp, 'index.php')
+			if os.path.exists(os.path.join(path, outf)):
+				raise Exception # TODO: Better exception
 
 			if (not os.path.exists(self.path['cache'])):
 				os.makedirs(self.path['cache'])
@@ -64,7 +74,21 @@ class trans:
 			inp.close()
 
 			out = open(tmpfile, 'wt', encoding="utf-8")
-			out.write("<?php header('location:{}'); ?>".format(p))
+			if php:
+				out.write("<?php header('location:{}'); ?>".format(p))
+			else:
+				out.write("""
+<html>
+	<head>
+		<meta http-equiv="refresh" content="0;url={0}" />
+		<title>Redirecting</title>
+	</head>
+	<body>
+		<p>Redirecting to <code>{0}</code>.</p>
+		<p>Click <a href="{0}">here</a> if you are not redirected automatically.</p>
+	</body>
+</html>
+					""".format(p))
 			out.close()
 
 			if (os.path.exists(cachefile) and filecmp.cmp(tmpfile, cachefile, False)):
@@ -221,10 +245,12 @@ class trans:
 			return type(e).__name__
 
 	def traverse(self, dir='.', ignore=['__pycache__']):
+		specials = ['.redirect', '.meta']
+
 		for d in os.listdir(dir):
 			path = os.path.relpath(os.path.join(dir, d))
 
-			if ((d in ignore) or (d[0:1] == '.')):
+			if ((d in ignore) or ((d[0:1] == '.') and (d not in specials))):
 				pass
 			elif (os.path.isdir(path)):
 				self.traverse(os.path.relpath(path), ignore)
@@ -235,10 +261,10 @@ class trans:
 
 				print(d, "... ", end='')
 
-				if (fnmatch.fnmatch(d, '*.html')):
+				if fnmatch.fnmatch(d, '*.html'):
 					action = 'translate'
 					result = self.htmlrepl(path)
-				elif (fnmatch.fnmatch(d, '.redirect')):
+				elif d == '.redirect':
 					action = 'redirect'
 					result = self.redir(path)
 				else:
@@ -250,8 +276,8 @@ class trans:
 
 	def run(self):
 		self.configDebug = None
-		if 'common' in self.config:
-			self.configDebug = self.config['common'].get('debug', 'enable')
+		if self.config != None:
+			self.configDebug = self.config.get('debug', 'enable')
 
 		if (self.configDebug != None) and (self.configDebug in ['yes', 'y', '1', 'on', 'enable', 'e', 't', 'true']):
 			self.configDebug = True
