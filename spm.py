@@ -1,7 +1,7 @@
 
 __NAME__ = 'spm'
 __AUTHOR__ = 'Matt Diesel'
-__VERSION__ = 'a5'
+__VERSION__ = 'a6'
 
 import sys, os, os.path, logging, configparser, shutil, http.server, socketserver
 
@@ -315,6 +315,8 @@ class SPM(CmdLineBase):
 						print(k, '=', v)
 		elif what == 'tags':
 			print(self.tags)
+		elif what == 'dir':
+			print(list(sys.modules.keys()))
 		else:
 			print('What?')
 

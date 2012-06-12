@@ -1,6 +1,12 @@
 
+Version a6
+  * Added: `allow_php` gen config
+  * Added: Default server options load from config
+  * Added: Server improvements: server log and KeyBoardInturrupt handling
+
 Version a5
   * Added: `_dbg` command
+  * Added: Multiple config files merged.
 
 Version a4
   * Fixed: Tag handlers throwing exceptions crashing generation
