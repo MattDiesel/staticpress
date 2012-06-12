@@ -266,7 +266,12 @@ class SPM(CmdLineBase):
 
 	def server(self, cache_or_www=None, port=None):
 		"""
-		Starts a test server.
+		Starts a test server. *Requires Admin*
+		Runs a simple http server, using either the cache or generating pages on
+		the fly for the www copy.
+
+		The settings are loaded from the config files, but can be overriden from the
+		command line
 		"""
 		self._info('Setting up test server...', 'server')
 		self._info('Set to listen on port {} using {}'.format(port, cache_or_www), 'server')
@@ -288,7 +293,7 @@ class SPM(CmdLineBase):
 			if 'server' in self.config.keys():
 				conf = self.config['server']
 
-			s = SPServer(conf, port, self.path[cache_or_www], __VERSION__, self._serverlog)
+			s = SPServer(conf, port, self.path[cache_or_www], __VERSION__, self._serverlog, self.path['logs'])
 		except Exception as e:
 			self._exception('Server stopped: {}'.format(type(e).__name__))
 

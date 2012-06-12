@@ -1,12 +1,33 @@
 
-import http.server, socketserver, os
+import http.server, socketserver, os, sys
+from ReplLog import Log
 
 class SPRequestHandler(http.server.SimpleHTTPRequestHandler):
-	pass
+	mainlog = None
+	serverlog = None
+	logformat = '{} {:<15} {} {}'
+
+	def writelog(self, code):
+		self.serverlog(self.logformat.format(self.log_date_time_string(), self.address_string(),
+				code, self.path))
+
+	def log_request(self, code=None, size=None):
+		self.writelog(code)
+
+	def log_error(self, format, *args):
+		print(self.path, format % args, file=sys.stderr)
+		self.writelog(args[0])
+
+	def log_message(self, format, *args):
+		self.serverlog(format % args)
 
 class SPServer:
-	def __init__(self, conf, port, path, version, log):
+	def __init__(self, conf, port, path, version, log, logpath):
 		self.handler = SPRequestHandler
+
+		self.serverlog = Log('server', logpath, False)
+		self.handler.serverlog = self.serverlog.writes
+		self.handler.mainlog = log
 
 		port = int(port)
 		os.chdir(path)
@@ -26,4 +47,9 @@ class SPServer:
 		httpd = socketserver.TCPServer(("", port), self.handler)
 
 		log('Server running on 127.0.0.1:{}'.format(port))
-		httpd.serve_forever()
+
+		try:
+			httpd.serve_forever()
+		except KeyboardInterrupt:
+			self.serverlog.end()
+			log('Server closed by user (KeyboardInterrupt)')
