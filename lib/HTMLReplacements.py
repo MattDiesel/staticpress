@@ -1,5 +1,5 @@
 
-import os, imp, os.path, io
+import os, imp, os.path, io, sys
 from TransParser import *
 
 class HTMLReplacements:
@@ -30,7 +30,9 @@ class HTMLReplacements:
 
 							if (ext == '.py'):
 								try:
+									sys.path.insert(0, os.path.realpath(os.path.join(p, d)))
 									mod = imp.load_source('{}.{}'.format(d, name), os.path.join(p, d, f))
+									sys.path.pop(0)
 
 									self.repls['{}:{}'.format(d, name)] = (
 										os.path.join(p, d, f),
@@ -42,7 +44,9 @@ class HTMLReplacements:
 				else:
 					name, ext = os.path.splitext(d)
 
+					sys.path.insert(0, os.path.realpath(p))
 					mod = imp.load_source('taghandler.{}'.format(name), os.path.join(p, d))
+					sys.path.pop(0)
 
 					if (name in self.handlers.keys()):
 						self.handlers[name].append(mod)
@@ -73,6 +77,7 @@ class HTMLReplacements:
 			except Exception as e:
 				self.info('Tag handler for \'<{}>\' threw exception \'{}\'.'.format(
 						key, type(e).__name__))
+
 				return '<!-- {} //-->'.format('{} -> ERROR: {}'.format(key, type(e).__name__))
 		elif (ret == None):
 			s = io.StringIO('')
