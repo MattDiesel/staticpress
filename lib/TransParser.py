@@ -33,7 +33,7 @@ class TransParser(HTMLParser):
 			r = self.rep.transf(tag, attrs)
 
 		if ((r == None) and self.rep and (':' in tag)):
-			r = self.rep[tag]
+			r = self.rep.get(tag, attrs)
 
 		if (r != None):
 			self.out(r)
@@ -52,7 +52,7 @@ class TransParser(HTMLParser):
 			r = self.rep.transf(tag, attrs)
 
 		if ((r == None) and self.rep and (':' in tag)):
-			r = self.rep[tag]
+			r = self.rep.get(tag, attrs)
 
 		if (r != None):
 			self.out(r)
