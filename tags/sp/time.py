@@ -1,5 +1,5 @@
 
-from datetime import *
+from datetime import datetime
 
 def handler(attrs):
 	if (attrs != None) and ('format' in attrs.keys()):
