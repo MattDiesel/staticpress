@@ -60,14 +60,15 @@ class trans:
 
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
-			cachefile = os.path.join(self.path['cache'], outf)
+			cachefile = os.path.join(self.path['cache'], file)
+			cachepath = os.path.join(self.path['cache'], path)
 			tmpfile = os.path.join(self.tmp, outf)
 
 			if os.path.exists(os.path.join(path, outf)):
 				raise Exception # TODO: Better exception
 
-			if (not os.path.exists(self.path['cache'])):
-				os.makedirs(self.path['cache'])
+			if (not os.path.exists(cachepath)):
+				os.makedirs(cachepath)
 
 			inp = open(file, 'rt')
 			p = inp.read(None)
