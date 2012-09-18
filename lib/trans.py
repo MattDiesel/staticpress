@@ -60,7 +60,7 @@ class trans:
 
 			path, f = os.path.split(file)
 			name, ext = os.path.splitext(f)
-			cachefile = os.path.join(self.path['cache'], file)
+			cachefile = os.path.join(self.path['cache'], path, outf)
 			cachepath = os.path.join(self.path['cache'], path)
 			tmpfile = os.path.join(self.tmp, outf)
 
